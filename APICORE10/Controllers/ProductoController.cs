@@ -3,9 +3,15 @@ using Microsoft.AspNetCore.Mvc;
 
 using System.Data;
 using System.Data.SqlClient;
-using APICORE10.Models;
+using BLL;
+using ENTIDADES;
 using System.Collections.Generic;
 using System.Collections;
+using BLL.Interfaces;
+using DAL;
+using System.Data.Common;
+using System.Diagnostics;
+using System;
 
 namespace APICORE10.Controllers
 {
@@ -16,132 +22,75 @@ namespace APICORE10.Controllers
 
         private readonly string Cadenasql;
 
-        public ProductoController (IConfiguration config)
+        public ProductoController(IConfiguration config)
         {
             Cadenasql = config.GetConnectionString("cadenaSQL");
         }
 
+
+
+
+
         [HttpGet]
         [Route("Lista")]
 
-        public IActionResult Lista() 
-        
-        { 
-            List<Producto> lista = new List<Producto>();
-            SqlConnection conn = new SqlConnection(Cadenasql);
-
-            try
-            {
-                var cmd = new SqlCommand("sp_lista_productos", conn);
-                cmd.CommandType = CommandType.StoredProcedure;
-                conn.Open();
-
-                using(var rd = cmd.ExecuteReader()) { 
-
-                    while (rd.Read())
-                    {
-
-                        lista.Add(new Producto
-                        {
-                            IdProducto = Convert.ToInt32(rd["IdProducto"]),
-                            CodigoBarra = string.IsNullOrEmpty(rd["CodigoBarra"].ToString()) ? "null" : rd["CodigoBarra"].ToString(),
-                            Nombre = string.IsNullOrEmpty(rd["Nombre"].ToString()) ? "Null" : rd["Nombre"].ToString(),
-                            Marca = string.IsNullOrEmpty(rd["Marca"].ToString()) ? "null" : rd["Marca"].ToString(),
-                            Categoria = string.IsNullOrEmpty(rd["Categoria"].ToString()) ? "Null" : rd["Categoria"].ToString(),
-                            Precio = Convert.ToDecimal(rd["Precio"]),
-
-
-                        });
-                    }
-
-                }
-
-                return StatusCode(StatusCodes.Status200OK, new { mensaje = "ok", Response = lista });
-
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = ex.Message, Response = lista });
-
-            }
-            finally
-            {
-                conn.Close();
-            }
-          
-
-        }
-        [HttpGet]
-        [Route("Obtener_Lista/{idproducto:int}")]
-
-
-        public IActionResult Obtener_Lista(int idproducto)
+        public IActionResult Lista()
         {
-
-           Producto listar = new Producto();
-
-            SqlConnection con = new SqlConnection(Cadenasql);
-
             try
             {
-                con.Open();
-                var cmd = new SqlCommand("ObtenerProductoPorId", con);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.AddWithValue("IdProducto", idproducto);
 
 
-                using ( var rd = cmd.ExecuteReader() )
-                {
 
-                    while (rd.Read())
-                    {
+                ProductoBL productosBL = new ProductoBL();
+                List<producto> productos = productosBL.lista();
 
-                        listar.IdProducto = Convert.ToInt32(rd["IdProducto"]);
-                        listar.CodigoBarra = rd["CodigoBarra"].ToString();
-                        listar.Nombre = rd["Nombre"].ToString();
-                        listar.Marca = rd["Marca"].ToString();
-                        listar.Categoria = rd["Categoria"].ToString() ;
-                        listar.Precio = Convert.ToDecimal(rd["Precio"]);
-                            
-
-                    }
-                }
-
-
-                return StatusCode(StatusCodes.Status200OK, new { mensaje = "ok", Response = listar });
-
+                return StatusCode(StatusCodes.Status200OK, new { mensaje = "OK", Response = productos });
 
             }
             catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = ex.Message, Response = listar });
-            }
-            finally
-            {
-                con.Close();   
+                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = ex.Message, Response = new List<producto>() });
+
             }
         }
+
+
+
+
+        [HttpGet]
+        [Route("Obtener_Un_Producto/{idProducto:int}")]
+
+        public IActionResult ListarProducto(int idProducto)
+        {
+            producto listar = new producto();
+
+            SqlConnection con = new SqlConnection(Constantes.Conexion.Mece);
+
+            try
+            {
+
+
+                return (IActionResult)listar;
+
+            }
+            catch (Exception ex)
+            {
+#pragma warning disable CA2200 // Rethrow to preserve stack details
+                throw ex;
+#pragma warning restore CA2200 // Rethrow to preserve stack details
+            }
+        }
+
         [HttpPost]
         [Route("Guardar")]
 
-        public IActionResult Guardar([FromBody]  Producto obje)
+        public IActionResult Guardar([FromBody] producto obje)
         {
 
-            SqlConnection conex = new SqlConnection(Cadenasql);
-
+            SqlConnection con = new SqlConnection(Constantes.Conexion.Mece);
             try
             {
-                {
-                    conex.Open();
-                    var cmd = new SqlCommand("sp_guardar_producto", conex);
-                    cmd.Parameters.AddWithValue("codigoBarra", obje.CodigoBarra);
-                    cmd.Parameters.AddWithValue("nombre", obje.Nombre);
-                    cmd.Parameters.AddWithValue("marca", obje.Marca);
-                    cmd.Parameters.AddWithValue("categoria", obje.Categoria);
-                    cmd.Parameters.AddWithValue("precio", obje.Precio);
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.ExecuteNonQuery();
-                }
+
 
 
                 return StatusCode(StatusCodes.Status200OK, new { mensaje = "ok" });
@@ -150,36 +99,27 @@ namespace APICORE10.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new {mensaje = ex.Message});    
+                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = ex.Message });
 
             }
-            finally { conex?.Close(); } 
         }
+                
 
-        [HttpPut]
-        [Route("Editar")]
+            [HttpPut]
+            [Route("Editar")]
 
-        public IActionResult Editar([FromBody] Producto obje) {
-            SqlConnection conex = new SqlConnection(Cadenasql);
+            public IActionResult Editar([FromBody] producto obje)
+        {
+            SqlConnection conex = new SqlConnection(Constantes.Conexion.Mece);
             try
             {
-                {
-                    conex.Open();
-                    var cmd = new SqlCommand("Editar_producto", conex);
-                    cmd.Parameters.AddWithValue("idProducto", obje.IdProducto == 0 ? DBNull.Value : obje.IdProducto);
-                    cmd.Parameters.AddWithValue("codigoBarra", obje.CodigoBarra is null ? DBNull.Value : obje.CodigoBarra);
-                    cmd.Parameters.AddWithValue("nombre", obje.Nombre is null ? DBNull.Value : obje.Nombre);
-                    cmd.Parameters.AddWithValue("marca", obje.Marca is null ? DBNull.Value : obje.Marca);
-                    cmd.Parameters.AddWithValue("categoria", obje.Categoria is null ? DBNull.Value : obje.Categoria);
-                    cmd.Parameters.AddWithValue("Precio", obje.Precio == 0 ? DBNull.Value : obje.Precio);
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.ExecuteNonQuery();
-                }
+                
 
                 return StatusCode(StatusCodes.Status200OK, new { mensaje = "Editado" });
 
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = "error" });
             }
             finally
@@ -187,31 +127,30 @@ namespace APICORE10.Controllers
                 conex.Close();
             }
 
-            
-        }
-        [HttpDelete]
-        [Route("Eliminar/{idProducto:int}")]
+
+            }
+
+
+            [HttpDelete]
+            [Route("Eliminar/{idProducto:int}")]
 
         public IActionResult Eliminar(int idProducto)
         {
-            SqlConnection con = new SqlConnection(Cadenasql);
+            SqlConnection con = new SqlConnection(Constantes.Conexion.Mece);
 
             try
             {
 
 
-                con.Open();
-                var cmd = new SqlCommand("Eliminar_Producto", con);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.AddWithValue("@idProducto", idProducto);
-                cmd.ExecuteNonQuery();
+
 
                 return StatusCode(StatusCodes.Status200OK, new { mensaje = " Producto eliminado" });
 
-            }catch (Exception ex)
+            }
+            catch (Exception ex)
             {
 
-                return StatusCode(StatusCodes.Status500InternalServerError, new {mensaje = ex.Message});
+                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = ex.Message });
             }
             finally
             {
@@ -221,3 +160,7 @@ namespace APICORE10.Controllers
 
     }
 }
+
+
+
+
